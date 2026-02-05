@@ -1,15 +1,15 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { User, UserRole, Fueling, TankRefill, AuditLog, TankStatus, Company, Machine } from './types';
-import { INITIAL_COMPANIES, MOCK_USERS, TANK_CAPACITY } from './constants';
-import { saveToStorage, getFromStorage } from './services/storage';
-import Layout from './components/Layout';
-import Dashboard from './components/Dashboard';
-import FuelingForm from './components/FuelingForm';
-import RefillForm from './components/RefillForm';
-import Reports from './components/Reports';
-import Admin from './components/Admin';
-import UserProfile from './components/UserProfile';
+import { User, UserRole, Fueling, TankRefill, AuditLog, TankStatus, Company, Machine } from './types.ts';
+import { INITIAL_COMPANIES, MOCK_USERS, TANK_CAPACITY } from './constants.ts';
+import { saveToStorage, getFromStorage } from './services/storage.ts';
+import Layout from './components/Layout.tsx';
+import Dashboard from './components/Dashboard.tsx';
+import FuelingForm from './components/FuelingForm.tsx';
+import RefillForm from './components/RefillForm.tsx';
+import Reports from './components/Reports.tsx';
+import Admin from './components/Admin.tsx';
+import UserProfile from './components/UserProfile.tsx';
 
 // CONFIGURAÇÃO REAL DO SUPABASE (FORNECIDA PELO USUÁRIO)
 const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://hjnaldtnqqedzxuxqqif.supabase.co'; 
@@ -75,7 +75,6 @@ const App: React.FC = () => {
         'Prefer': 'resolution=merge-duplicates'
       };
 
-      // 1. Sincronizar Abastecimentos (Máquinas)
       const unsyncedFuelings = fuelings.filter(f => !f.synced);
       if (unsyncedFuelings.length > 0) {
         const payload = unsyncedFuelings.map(f => ({
@@ -93,7 +92,6 @@ const App: React.FC = () => {
         if (res.ok) setFuelings(prev => prev.map(f => ({ ...f, synced: true })));
       }
 
-      // 2. Sincronizar Cargas de Tanque
       const unsyncedRefills = refills.filter(r => !r.synced);
       if (unsyncedRefills.length > 0) {
         const payload = unsyncedRefills.map(r => ({
@@ -107,7 +105,6 @@ const App: React.FC = () => {
         if (res.ok) setRefills(prev => prev.map(r => ({ ...r, synced: true })));
       }
 
-      // 3. Sincronizar Máquinas (Novos cadastros)
       const unsyncedMachines = machines.filter(m => !m.synced);
       if (unsyncedMachines.length > 0) {
         const payload = unsyncedMachines.map(m => ({
@@ -154,7 +151,7 @@ const App: React.FC = () => {
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0c1410] p-6 relative overflow-hidden">
+      <div className="min-h-screen flex items-center justify-center bg-[#0c1410] p-6 relative overflow-hidden text-slate-100">
         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-900/20 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl"></div>
         <div className="w-full max-w-md">
           <div className="text-center mb-10">
