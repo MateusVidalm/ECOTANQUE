@@ -1,51 +1,47 @@
-
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { User, UserRole, Fueling, TankRefill, AuditLog, TankStatus, Company, Machine } from './types.ts';
-import { INITIAL_COMPANIES, MOCK_USERS, TANK_CAPACITY } from './constants.ts';
-import { saveToStorage, getFromStorage } from './services/storage.ts';
-import Layout from './components/Layout.tsx';
-import Dashboard from './components/Dashboard.tsx';
-import FuelingForm from './components/FuelingForm.tsx';
-import RefillForm from './components/RefillForm.tsx';
-import Reports from './components/Reports.tsx';
-import Admin from './components/Admin.tsx';
-import UserProfile from './components/UserProfile.tsx';
-
-// CONFIGURAÇÃO REAL DO SUPABASE
-const SUPABASE_URL = 'https://hjnaldtnqqedzxuxqqif.supabase.co'; 
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqbmFsZHRucXFlZHp4dXhxcWlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyOTU5NzMsImV4cCI6MjA4NTg3MTk3M30.W6_O9UyO6D-GxkkEcwzrDgmVMfwViPciKe-2LjPSAOM';
+import React, { useState, useEffect, useCallback } from 'react';
+import { User, UserRole, Fueling, TankRefill, AuditLog, TankStatus, Company, Machine } from './types';
+import { INITIAL_COMPANIES, MOCK_USERS, TANK_CAPACITY } from './constants';
+import { saveToStorage, getFromStorage } from './services/storage';
+import Layout from './components/Layout';
+import Dashboard from './components/Dashboard';
+import FuelingForm from './components/FuelingForm';
+import RefillForm from './components/RefillForm';
+import Reports from './components/Reports';
+import Admin from './components/Admin';
+import UserProfile from './components/UserProfile';
 
 const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(getFromStorage<User | null>('user', null));
+  const [currentUser, setCurrentUser] = useState<User | null>(() => getFromStorage<User | null>('user', null));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const [companies] = useState<Company[]>(INITIAL_COMPANIES);
-  const [machines, setMachines] = useState<Machine[]>(getFromStorage<Machine[]>('machines', [
-    { id: 'm1', name: 'Escavadeira X1', companyId: 'campo-rico', type: 'MAQUINA' },
-    { id: 'm2', name: 'Trator Y2', companyId: 'km-12', type: 'MAQUINA' },
-    { id: 'm3', name: 'Caminhão Z3', companyId: 'porto-cdp', type: 'MAQUINA' }
+  const [machines, setMachines] = useState<Machine[]>(() => getFromStorage<Machine[]>('machines', [
+    { id: 'm1', name: 'Escavadeira CAT-01', companyId: 'campo-rico', type: 'MAQUINA' },
+    { id: 'm2', name: 'Trator MF-05', companyId: 'fertitex', type: 'MAQUINA' },
+    { id: 'm3', name: 'Caminhão MB-12', companyId: 'empresa-1', type: 'VEICULO', plate: 'EF-2024' }
   ]));
-  const [users, setUsers] = useState<User[]>(getFromStorage<User[]>('users', MOCK_USERS));
-  const [fuelings, setFuelings] = useState<Fueling[]>(getFromStorage<Fueling[]>('fuelings', []));
-  const [refills, setRefills] = useState<TankRefill[]>(getFromStorage<TankRefill[]>('refills', []));
-  const [logs, setLogs] = useState<AuditLog[]>(getFromStorage<AuditLog[]>('logs', []));
-  const [tankStatus, setTankStatus] = useState<TankStatus>(getFromStorage<TankStatus>('tank', { 
-    name: 'Tanque Principal 01',
+  
+  const [users, setUsers] = useState<User[]>(() => getFromStorage<User[]>('users', MOCK_USERS));
+  const [fuelings, setFuelings] = useState<Fueling[]>(() => getFromStorage<Fueling[]>('fuelings', []));
+  const [refills, setRefills] = useState<TankRefill[]>(() => getFromStorage<TankRefill[]>('refills', []));
+  const [logs, setLogs] = useState<AuditLog[]>(() => getFromStorage<AuditLog[]>('logs', []));
+  const [tankStatus, setTankStatus] = useState<TankStatus>(() => getFromStorage<TankStatus>('tank', { 
+    name: 'Tanque Central 15k',
     capacity: TANK_CAPACITY, 
-    currentLevel: 10620 
+    currentLevel: 15000 
   }));
+  
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    const handleStatus = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', handleStatus);
+    window.addEventListener('offline', handleStatus);
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleStatus);
+      window.removeEventListener('offline', handleStatus);
     };
   }, []);
 
@@ -57,116 +53,88 @@ const App: React.FC = () => {
   useEffect(() => { saveToStorage('tank', tankStatus); }, [tankStatus]);
   useEffect(() => { saveToStorage('user', currentUser); }, [currentUser]);
 
-  const pendingSyncCount = useMemo(() => {
-    const pFuelings = fuelings.filter(f => !f.synced).length;
-    const pRefills = refills.filter(r => !r.synced).length;
-    const pMachines = machines.filter(m => !m.synced).length;
-    return pFuelings + pRefills + pMachines;
-  }, [fuelings, refills, machines]);
-
-  const handleSync = async () => {
-    if (!isOnline) return;
-
-    try {
-      const headers = {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates'
-      };
-
-      const unsyncedFuelings = fuelings.filter(f => !f.synced);
-      if (unsyncedFuelings.length > 0) {
-        const payload = unsyncedFuelings.map(f => ({
-          id: f.id, 
-          date: f.date, 
-          machine_id: f.machineId, 
-          company_id: f.companyId, 
-          liters: f.liters, 
-          meter: f.meter, 
-          operator_name: f.operatorName, 
-          user_id: f.userId,
-          observations: f.observations || ''
-        }));
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/fuelings`, { method: 'POST', headers, body: JSON.stringify(payload) });
-        if (res.ok) setFuelings(prev => prev.map(f => ({ ...f, synced: true })));
-      }
-
-      const unsyncedRefills = refills.filter(r => !r.synced);
-      if (unsyncedRefills.length > 0) {
-        const payload = unsyncedRefills.map(r => ({
-          id: r.id, 
-          date: r.date, 
-          company_id: r.companyId, 
-          liters: r.liters, 
-          user_id: r.userId
-        }));
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/refills`, { method: 'POST', headers, body: JSON.stringify(payload) });
-        if (res.ok) setRefills(prev => prev.map(r => ({ ...r, synced: true })));
-      }
-
-      const unsyncedMachines = machines.filter(m => !m.synced);
-      if (unsyncedMachines.length > 0) {
-        const payload = unsyncedMachines.map(m => ({
-          id: m.id, 
-          name: m.name, 
-          company_id: m.companyId, 
-          type: m.type, 
-          plate: m.plate || null, 
-          photo_url: m.photoUrl || null
-        }));
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/machines`, { method: 'POST', headers, body: JSON.stringify(payload) });
-        if (res.ok) setMachines(prev => prev.map(m => ({ ...m, synced: true })));
-      }
-
-      alert("Sincronização concluída com sucesso!");
-    } catch (e) {
-      console.error(e);
-      alert("Erro na conexão com o banco de dados.");
-    }
-  };
-
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const user = users.find(u => u.email === email && (u.password === password || password === '123'));
+    const user = users.find(u => u.email === email && u.password === password);
     if (user) {
       setCurrentUser(user);
       setActiveTab(user.role === UserRole.ABASTECEDOR ? 'fueling' : 'dashboard');
-    } else alert('Usuário ou senha inválidos.');
+    } else alert('E-mail ou senha incorretos.');
   };
 
   const handleFuelingSubmit = useCallback((data: any) => {
     if (!currentUser) return;
-    const newF: Fueling = { id: `f-${Date.now()}`, date: new Date().toISOString(), userId: currentUser.id, synced: false, ...data };
-    setFuelings(prev => [...prev, newF]);
-    setTankStatus(prev => ({ ...prev, currentLevel: prev.currentLevel - data.liters }));
+    const newFueling: Fueling = { 
+      id: `f-${Date.now()}`, 
+      date: new Date().toISOString(), 
+      userId: currentUser.id, 
+      operatorName: data.operatorName || currentUser.name,
+      synced: false,
+      ...data 
+    };
+    setFuelings(prev => [...prev, newFueling]);
+    setTankStatus(prev => ({ ...prev, currentLevel: Math.max(0, prev.currentLevel - data.liters) }));
   }, [currentUser]);
 
   const handleRefillSubmit = useCallback((data: any) => {
     if (!currentUser) return;
-    const newR: TankRefill = { id: `r-${Date.now()}`, date: new Date().toISOString(), userId: currentUser.id, synced: false, ...data };
-    setRefills(prev => [...prev, newR]);
-    setTankStatus(prev => ({ ...prev, currentLevel: prev.currentLevel + data.liters }));
+    const newRefill: TankRefill = { 
+      id: `r-${Date.now()}`, 
+      date: new Date().toISOString(), 
+      userId: currentUser.id, 
+      synced: false,
+      ...data 
+    };
+    setRefills(prev => [...prev, newRefill]);
+    setTankStatus(prev => ({ ...prev, currentLevel: Math.min(prev.capacity, prev.currentLevel + data.liters) }));
   }, [currentUser]);
+
+  const handleAdjustTank = useCallback((liters: number, reason: string) => {
+    if (!currentUser) return;
+    const oldValue = tankStatus.currentLevel.toString();
+    setTankStatus(prev => ({ ...prev, currentLevel: liters }));
+    setLogs(prev => [...prev, {
+      id: `log-${Date.now()}`, timestamp: new Date().toISOString(), userId: currentUser.id,
+      action: 'ADJUST', entity: 'TANK', oldValue, newValue: liters.toString(), reason
+    }]);
+  }, [currentUser, tankStatus.currentLevel]);
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setEmail('');
+    setPassword('');
+  };
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0c1410] p-6 relative overflow-hidden text-slate-100">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-900/20 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl"></div>
-        <div className="w-full max-w-md">
-          <div className="text-center mb-10">
-            <div className="inline-flex w-20 h-20 bg-emerald-600 rounded-[2rem] items-center justify-center shadow-2xl mb-6 rotate-12">
-               <span className="text-white text-4xl font-black -rotate-12">E</span>
+      <div className="min-h-screen flex items-center justify-center bg-[#0c1410] p-6 text-slate-100">
+        <div className="w-full max-w-sm space-y-8 animate-fadeIn">
+          <div className="text-center">
+            <div className="w-20 h-20 bg-emerald-600 rounded-[2rem] inline-flex items-center justify-center shadow-2xl mb-6">
+               <span className="text-3xl font-black text-white">EF</span>
             </div>
-            <h1 className="text-4xl font-black text-white tracking-tight">ECOFUEL</h1>
-            <p className="text-emerald-500 font-bold uppercase text-[10px] mt-2">Gestão de Diesel</p>
+            <h1 className="text-4xl font-black tracking-tighter">ECOFUEL</h1>
+            <p className="text-emerald-500 font-bold text-[10px] uppercase tracking-widest mt-2">Industrial Diesel Control</p>
           </div>
-          <div className="bg-[#141d18] rounded-[2.5rem] shadow-2xl p-10 border border-emerald-900/30">
+          <div className="bg-[#141d18] p-10 rounded-[2.5rem] border border-emerald-900/20 shadow-2xl">
             <form onSubmit={handleLogin} className="space-y-6">
-              <input type="email" placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-[#1a2520] border border-emerald-900/20 rounded-2xl px-6 py-4 outline-none font-bold text-white" required />
-              <input type="password" placeholder="Senha" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-[#1a2520] border border-emerald-900/20 rounded-2xl px-6 py-4 outline-none font-bold text-white" />
-              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-5 rounded-2xl transition-all">Entrar</button>
+              <input 
+                type="email" placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)} 
+                className="w-full bg-[#1a2520] border border-emerald-900/10 rounded-2xl px-6 py-4 outline-none font-bold text-white focus:border-emerald-500 transition-colors"
+                required 
+              />
+              <input 
+                type="password" placeholder="Senha" value={password} onChange={e => setPassword(e.target.value)} 
+                className="w-full bg-[#1a2520] border border-emerald-900/10 rounded-2xl px-6 py-4 outline-none font-bold text-white focus:border-emerald-500 transition-colors"
+                required
+              />
+              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-5 rounded-2xl shadow-xl transition-all">
+                AUTENTICAR
+              </button>
             </form>
+          </div>
+          <div className="text-center opacity-20 text-[9px] font-black uppercase tracking-widest">
+            v1.4.0 • PWA Mode Ativo
           </div>
         </div>
       </div>
@@ -176,31 +144,66 @@ const App: React.FC = () => {
   return (
     <Layout 
       user={currentUser} 
-      onLogout={() => setCurrentUser(null)} 
+      onLogout={handleLogout} 
       activeTab={activeTab} 
       setActiveTab={setActiveTab}
       isOnline={isOnline}
-      pendingSyncCount={pendingSyncCount}
-      onSync={handleSync}
+      pendingSyncCount={0}
+      onSync={async () => {}}
     >
       {activeTab === 'dashboard' && <Dashboard fuelings={fuelings} tankStatus={tankStatus} companies={companies} machines={machines} refills={refills} />}
-      {activeTab === 'profile' && <UserProfile user={currentUser} fuelings={fuelings} machines={machines} onUpdateUser={(data) => setCurrentUser(prev => prev ? {...prev, ...data} : null)} />}
       {activeTab === 'fueling' && <FuelingForm user={currentUser} machines={machines} companies={companies} fuelings={fuelings} onSubmit={handleFuelingSubmit} onSuggestCorrection={() => {}} tankBalance={tankStatus.currentLevel} />}
-      {activeTab === 'refill' && <RefillForm tankStatus={tankStatus} companies={companies} onSubmit={handleRefillSubmit} onUpdateMetadata={(n, c) => setTankStatus(p => ({...p, name: n, capacity: c}))} onAdjustTank={(l) => setTankStatus(p => ({...p, currentLevel: l}))} />}
-      {activeTab === 'reports' && <Reports user={currentUser} fuelings={fuelings} refills={refills} companies={companies} machines={machines} users={users} logs={logs} onDeleteFueling={() => {}} onUpdateFueling={() => {}} />}
+      {activeTab === 'profile' && <UserProfile user={currentUser} fuelings={fuelings} machines={machines} onUpdateUser={(d) => setCurrentUser(p => p ? {...p, ...d} : null)} />}
+      {activeTab === 'refill' && <RefillForm tankStatus={tankStatus} companies={companies} onSubmit={handleRefillSubmit} onUpdateMetadata={(n, c) => setTankStatus(p => ({...p, name: n, capacity: c}))} onAdjustTank={handleAdjustTank} />}
+      {activeTab === 'reports' && (
+        <Reports 
+          user={currentUser} fuelings={fuelings} refills={refills} companies={companies} 
+          machines={machines} users={users} logs={logs} 
+          onDeleteFueling={(id) => {
+            const f = fuelings.find(x => x.id === id);
+            if (f) {
+              setFuelings(p => p.filter(x => x.id !== id));
+              setTankStatus(p => ({ ...p, currentLevel: Math.min(p.capacity, p.currentLevel + f.liters) }));
+              setLogs(prev => [...prev, {
+                id: `log-${Date.now()}`, timestamp: new Date().toISOString(), userId: currentUser.id,
+                action: 'DELETE', entity: 'FUELING', reason: `Exclusão de abastecimento ID ${id}`
+              }]);
+            }
+          }}
+          onUpdateFueling={(id, data) => {
+            const old = fuelings.find(x => x.id === id);
+            if (old && data.liters !== undefined) {
+              const diff = old.liters - data.liters;
+              setTankStatus(p => ({ ...p, currentLevel: Math.min(p.capacity, Math.max(0, p.currentLevel + diff)) }));
+              setFuelings(p => p.map(x => x.id === id ? { ...x, ...data } : x));
+              setLogs(prev => [...prev, {
+                id: `log-${Date.now()}`, timestamp: new Date().toISOString(), userId: currentUser.id,
+                action: 'UPDATE', entity: 'FUELING', reason: `Edição de volume ID ${id}`
+              }]);
+            }
+          }}
+        />
+      )}
       {activeTab === 'admin' && (
         <Admin 
-          companies={companies} 
-          machines={machines} 
-          users={users} 
-          fuelings={fuelings} 
-          logs={logs} 
-          onAddMachine={m => setMachines(p => [...p, {id: `m-${Date.now()}`, synced: false, ...m}])} 
-          onAddUser={u => setUsers(p => [...p, {id: `u-${Date.now()}`, password: '123', synced: false, ...u}])} 
-          onUpdateUser={() => {}} 
-          onDeleteUser={() => {}} 
-          onAdjustTank={(l) => setTankStatus(p => ({...p, currentLevel: l}))}
-          onProcessCorrection={() => {}}
+          companies={companies} machines={machines} users={users} fuelings={fuelings} logs={logs}
+          onAddMachine={m => setMachines(p => [...p, {id: `m-${Date.now()}`, ...m}])}
+          onAddUser={u => setUsers(p => [...p, {id: `u-${Date.now()}`, ...u, password: '123'}])}
+          onUpdateUser={(id, d) => setUsers(p => p.map(u => u.id === id ? {...u, ...d} : u))}
+          onDeleteUser={(id) => setUsers(p => p.filter(u => u.id !== id))}
+          onAdjustTank={handleAdjustTank}
+          onProcessCorrection={(id, approved, newData) => {
+            if (approved && newData) {
+               const old = fuelings.find(x => x.id === id);
+               if (old && newData.liters !== undefined) {
+                  const diff = old.liters - newData.liters;
+                  setTankStatus(p => ({ ...p, currentLevel: Math.max(0, p.currentLevel + diff) }));
+                  setFuelings(p => p.map(x => x.id === id ? { ...x, ...newData, correctionNote: undefined } : x));
+               }
+            } else {
+               setFuelings(p => p.map(x => x.id === id ? { ...x, correctionNote: undefined } : x));
+            }
+          }}
         />
       )}
     </Layout>

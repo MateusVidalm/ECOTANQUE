@@ -2,47 +2,43 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#059669">
-    <link rel="manifest" href="/manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="EcoFuel">
+    <meta name="theme-color" content="#065f46">
+    <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/808/808439.png">
-    <title>EcoFuel Diesel Control</title>
     
-    <!-- Tailwind CSS -->
+    <title>EcoFuel | Diesel Control</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     
     <style>
-        body { font-family: 'Inter', sans-serif; margin: 0; background: #0c1410; }
-        #loading-screen {
-          position: fixed;
-          inset: 0;
-          background: #0c1410;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          z-index: 9999;
-          transition: opacity 0.5s ease;
+        :root { --app-height: 100%; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            background: #0c1410; 
+            color: #f8fafc;
+            overscroll-behavior-y: contain;
+            height: 100vh;
+            height: -webkit-fill-available;
         }
-        .spinner {
-          width: 50px;
-          height: 50px;
-          border: 4px solid rgba(16, 185, 129, 0.1);
-          border-left-color: #10b981;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
+        #root { height: 100%; }
+        
+        input, select, textarea { font-size: 16px !important; } /* Evita zoom forçado no iOS */
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #065f46; border-radius: 10px; }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .loading-text {
-          color: #10b981;
-          font-weight: 800;
-          margin-top: 1.5rem;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          font-size: 0.7rem;
-        }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
     </style>
 
     <script type="importmap">
@@ -51,7 +47,7 @@
     "react": "https://esm.sh/react@18.2.0",
     "react-dom": "https://esm.sh/react-dom@18.2.0",
     "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-    "recharts": "https://esm.sh/recharts@2.12.0",
+    "recharts": "https://esm.sh/recharts@2.12.0?external=react,react-dom",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "react/": "https://esm.sh/react@^19.2.4/"
   }
@@ -59,35 +55,10 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-<body>
-    <div id="loading-screen">
-        <div class="spinner"></div>
-        <p class="loading-text" id="loading-msg">Iniciando EcoFuel...</p>
-    </div>
-    
+<body class="bg-[#0c1410] text-slate-100">
     <div id="root"></div>
-    
-    <!-- ESM Run: Carregador automático que compila .tsx no navegador -->
     <script src="https://esm.sh/run" type="module"></script>
     <script type="module" src="./index.tsx"></script>
-
-    <script>
-      window.hideEcoFuelLoading = function() {
-        const loader = document.getElementById('loading-screen');
-        if (loader) {
-          loader.style.opacity = '0';
-          setTimeout(() => loader.remove(), 500);
-        }
-      };
-
-      setTimeout(() => {
-        const loader = document.getElementById('loading-screen');
-        if (loader && loader.parentElement) {
-          const msg = document.getElementById('loading-msg');
-          if (msg) msg.innerText = "Erro ao carregar. Tente atualizar.";
-        }
-      }, 15000);
-    </script>
 <script type="module" src="/index.tsx"></script>
 </body>
 </html>
