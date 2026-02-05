@@ -1,0 +1,5 @@
+{
+  "name": "EcoFuel Diesel Control",
+  "description": "A comprehensive responsive system for managing diesel consumption across multiple companies, featuring tank monitoring, fueling logs, and tiered user permissions.",
+  "requestFramePermissions": []
+}
