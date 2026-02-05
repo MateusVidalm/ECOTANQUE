@@ -11,9 +11,9 @@ import Reports from './components/Reports.tsx';
 import Admin from './components/Admin.tsx';
 import UserProfile from './components/UserProfile.tsx';
 
-// CONFIGURAÇÃO REAL DO SUPABASE (FORNECIDA PELO USUÁRIO)
-const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://hjnaldtnqqedzxuxqqif.supabase.co'; 
-const SUPABASE_KEY = (import.meta as any).env?.VITE_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqbmFsZHRucXFlZHp4dXhxcWlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyOTU5NzMsImV4cCI6MjA4NTg3MTk3M30.W6_O9UyO6D-GxkkEcwzrDgmVMfwViPciKe-2LjPSAOM';
+// CONFIGURAÇÃO REAL DO SUPABASE
+const SUPABASE_URL = 'https://hjnaldtnqqedzxuxqqif.supabase.co'; 
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqbmFsZHRucXFlZHp4dXhxcWlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyOTU5NzMsImV4cCI6MjA4NTg3MTk3M30.W6_O9UyO6D-GxkkEcwzrDgmVMfwViPciKe-2LjPSAOM';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(getFromStorage<User | null>('user', null));
