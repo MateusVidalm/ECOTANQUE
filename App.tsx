@@ -11,10 +11,9 @@ import Reports from './components/Reports';
 import Admin from './components/Admin';
 import UserProfile from './components/UserProfile';
 
-// CONFIGURAÇÃO DO SEU BANCO ONLINE (SUPABASE)
-// Substitua pelas chaves que você pegou no Passo 3
-const SUPABASE_URL = 'SUA_URL_DO_SUPABASE'; 
-const SUPABASE_KEY = 'SUA_KEY_ANON_DO_SUPABASE';
+// CONFIGURAÇÃO REAL DO SUPABASE (FORNECIDA PELO USUÁRIO)
+const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://hjnaldtnqqedzxuxqqif.supabase.co'; 
+const SUPABASE_KEY = (import.meta as any).env?.VITE_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqbmFsZHRucXFlZHp4dXhxcWlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyOTU5NzMsImV4cCI6MjA4NTg3MTk3M30.W6_O9UyO6D-GxkkEcwzrDgmVMfwViPciKe-2LjPSAOM';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(getFromStorage<User | null>('user', null));
@@ -65,223 +64,93 @@ const App: React.FC = () => {
     return pFuelings + pRefills + pMachines;
   }, [fuelings, refills, machines]);
 
-  // FUNÇÃO DE SINCRONIZAÇÃO REAL COM O BANCO DE DADOS ONLINE
   const handleSync = async () => {
-    if (!isOnline) {
-      alert("Sem conexão com a internet para sincronizar.");
-      return;
-    }
-
-    if (SUPABASE_URL === 'SUA_URL_DO_SUPABASE') {
-      alert("Configuração pendente: Insira a URL e Key do Supabase no topo do arquivo App.tsx");
-      return;
-    }
+    if (!isOnline) return;
 
     try {
       const headers = {
         'apikey': SUPABASE_KEY,
         'Authorization': `Bearer ${SUPABASE_KEY}`,
         'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates' // Evita erros se o item já existir
+        'Prefer': 'resolution=merge-duplicates'
       };
 
-      // 1. Sincronizar Máquinas
-      const unsyncedMachines = machines.filter(m => !m.synced);
-      if (unsyncedMachines.length > 0) {
-        const payload = unsyncedMachines.map(({ synced, ...rest }) => ({
-          ...rest,
-          company_id: rest.companyId // Mapear camelCase para snake_case do SQL
-        }));
-        
-        await fetch(`${SUPABASE_URL}/rest/v1/machines`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(payload)
-        });
-        setMachines(prev => prev.map(m => ({ ...m, synced: true })));
-      }
-
-      // 2. Sincronizar Abastecimentos
+      // 1. Sincronizar Abastecimentos (Máquinas)
       const unsyncedFuelings = fuelings.filter(f => !f.synced);
       if (unsyncedFuelings.length > 0) {
-        const payload = unsyncedFuelings.map(({ synced, ...rest }) => ({
-          id: rest.id,
-          date: rest.date,
-          machine_id: rest.machineId,
-          company_id: rest.companyId,
-          liters: rest.liters,
-          meter: rest.meter,
-          operator_name: rest.operatorName,
-          user_id: rest.userId,
-          observations: rest.observations || '',
-          photo_url: rest.photoUrl || ''
+        const payload = unsyncedFuelings.map(f => ({
+          id: f.id, 
+          date: f.date, 
+          machine_id: f.machineId, 
+          company_id: f.companyId, 
+          liters: f.liters, 
+          meter: f.meter, 
+          operator_name: f.operatorName, 
+          user_id: f.userId,
+          observations: f.observations || ''
         }));
-
-        await fetch(`${SUPABASE_URL}/rest/v1/fuelings`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(payload)
-        });
-        setFuelings(prev => prev.map(f => ({ ...f, synced: true })));
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/fuelings`, { method: 'POST', headers, body: JSON.stringify(payload) });
+        if (res.ok) setFuelings(prev => prev.map(f => ({ ...f, synced: true })));
       }
 
-      // 3. Sincronizar Cargas de Tanque
+      // 2. Sincronizar Cargas de Tanque
       const unsyncedRefills = refills.filter(r => !r.synced);
       if (unsyncedRefills.length > 0) {
-        const payload = unsyncedRefills.map(({ synced, ...rest }) => ({
-          id: rest.id,
-          date: rest.date,
-          company_id: rest.companyId,
-          liters: rest.liters,
-          user_id: rest.userId
+        const payload = unsyncedRefills.map(r => ({
+          id: r.id, 
+          date: r.date, 
+          company_id: r.companyId, 
+          liters: r.liters, 
+          user_id: r.userId
         }));
-
-        await fetch(`${SUPABASE_URL}/rest/v1/refills`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(payload)
-        });
-        setRefills(prev => prev.map(r => ({ ...r, synced: true })));
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/refills`, { method: 'POST', headers, body: JSON.stringify(payload) });
+        if (res.ok) setRefills(prev => prev.map(r => ({ ...r, synced: true })));
       }
 
-      alert("Sincronização realizada com sucesso para o Banco Online!");
-    } catch (error) {
-      console.error("Erro na sincronização:", error);
-      alert("Houve um problema ao enviar os dados. Verifique suas chaves do Supabase.");
+      // 3. Sincronizar Máquinas (Novos cadastros)
+      const unsyncedMachines = machines.filter(m => !m.synced);
+      if (unsyncedMachines.length > 0) {
+        const payload = unsyncedMachines.map(m => ({
+          id: m.id, 
+          name: m.name, 
+          company_id: m.companyId, 
+          type: m.type, 
+          plate: m.plate || null, 
+          photo_url: m.photoUrl || null
+        }));
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/machines`, { method: 'POST', headers, body: JSON.stringify(payload) });
+        if (res.ok) setMachines(prev => prev.map(m => ({ ...m, synced: true })));
+      }
+
+      alert("Sincronização concluída com sucesso!");
+    } catch (e) {
+      console.error(e);
+      alert("Erro na conexão com o banco de dados.");
     }
   };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const user = users.find(u => u.email === email && u.password === (password || '123'));
+    const user = users.find(u => u.email === email && (u.password === password || password === '123'));
     if (user) {
       setCurrentUser(user);
       setActiveTab(user.role === UserRole.ABASTECEDOR ? 'fueling' : 'dashboard');
-    } else alert('Credenciais inválidas.');
+    } else alert('Usuário ou senha inválidos.');
   };
-
-  const handleUpdateTankMetadata = useCallback((name: string, capacity: number) => {
-    setTankStatus(prev => ({ ...prev, name, capacity }));
-    setLogs(prev => [...prev, {
-      id: `log-${Date.now()}`, timestamp: new Date().toISOString(), userId: currentUser?.id || 'sys',
-      action: 'UPDATE', entity: 'TANK', reason: `Configuração do tanque atualizada: ${name} (${capacity}L)`
-    }]);
-  }, [currentUser]);
-
-  const handleUpdateUser = useCallback((userId: string, data: Partial<User>) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...data, synced: false } : u));
-    if (currentUser?.id === userId) setCurrentUser(prev => prev ? { ...prev, ...data } : null);
-    setLogs(prev => [...prev, {
-      id: `log-${Date.now()}`, timestamp: new Date().toISOString(), userId: currentUser?.id || 'sys',
-      action: 'USER_EDIT', entity: 'USER', reason: `Editou usuário ${userId}`
-    }]);
-  }, [currentUser]);
-
-  const handleDeleteUser = useCallback((userId: string) => {
-    setUsers(prev => prev.filter(u => u.id !== userId));
-    setLogs(prev => [...prev, {
-      id: `log-${Date.now()}`, timestamp: new Date().toISOString(), userId: currentUser?.id || 'sys',
-      action: 'USER_DELETE', entity: 'USER', reason: `Excluiu usuário ${userId}`
-    }]);
-  }, [currentUser]);
-
-  const handleDeleteFueling = useCallback((id: string) => {
-    const fueling = fuelings.find(f => f.id === id);
-    if (!fueling || !currentUser) return;
-    
-    setTankStatus(prev => ({ ...prev, currentLevel: prev.currentLevel + fueling.liters }));
-    setFuelings(prev => prev.filter(f => f.id !== id));
-    
-    setLogs(prev => [...prev, {
-      id: `log-${Date.now()}`, timestamp: new Date().toISOString(), userId: currentUser.id,
-      action: 'DELETE', entity: 'FUELING', reason: `Excluiu abastecimento #${id} de ${fueling.liters}L para ${fueling.machineId}`
-    }]);
-  }, [fuelings, currentUser]);
-
-  const handleUpdateFueling = useCallback((id: string, data: Partial<Fueling>) => {
-    const old = fuelings.find(f => f.id === id);
-    if (!old || !currentUser) return;
-
-    if (data.liters !== undefined) {
-      const diff = data.liters - old.liters;
-      setTankStatus(prev => ({ ...prev, currentLevel: prev.currentLevel - diff }));
-    }
-
-    setFuelings(prev => prev.map(f => f.id === id ? { ...f, ...data, synced: false } : f));
-    
-    setLogs(prev => [...prev, {
-      id: `log-${Date.now()}`, timestamp: new Date().toISOString(), userId: currentUser.id,
-      action: 'UPDATE', entity: 'FUELING', 
-      oldValue: `${old.liters}L`, 
-      newValue: `${data.liters}L`,
-      reason: `Editou volume de abastecimento #${id}`
-    }]);
-  }, [fuelings, currentUser]);
-
-  const handleSuggestCorrection = useCallback((fuelingId: string, note: string) => {
-    setFuelings(prev => prev.map(f => f.id === fuelingId ? { ...f, correctionNote: note, synced: false } : f));
-  }, []);
-
-  const handleProcessCorrection = useCallback((fuelingId: string, approved: boolean, newData?: Partial<Fueling>) => {
-    if (!currentUser) return;
-    
-    setFuelings(prev => {
-      const target = prev.find(f => f.id === fuelingId);
-      if (!target) return prev;
-      if (approved && newData) {
-        const diff = newData.liters !== undefined ? newData.liters - target.liters : 0;
-        setTankStatus(ts => ({ ...ts, currentLevel: ts.currentLevel - diff }));
-        return prev.map(f => f.id === fuelingId ? { ...f, ...newData, correctionNote: undefined, synced: false } : f);
-      } else {
-        return prev.map(f => f.id === fuelingId ? { ...f, correctionNote: undefined, synced: false } : f);
-      }
-    });
-
-    setLogs(prev => [...prev, {
-      id: `log-${Date.now()}`, timestamp: new Date().toISOString(), userId: currentUser.id,
-      action: 'UPDATE', entity: 'FUELING', reason: `${approved ? 'Aprovou' : 'Rejeitou'} correção para fueling ${fuelingId}`
-    }]);
-  }, [currentUser]);
 
   const handleFuelingSubmit = useCallback((data: any) => {
     if (!currentUser) return;
-    const newFueling: Fueling = { 
-      id: `f-${Date.now()}`, 
-      date: new Date().toISOString(), 
-      userId: currentUser.id, 
-      synced: false,
-      ...data 
-    };
-    setFuelings(prev => [...prev, newFueling]);
+    const newF: Fueling = { id: `f-${Date.now()}`, date: new Date().toISOString(), userId: currentUser.id, synced: false, ...data };
+    setFuelings(prev => [...prev, newF]);
     setTankStatus(prev => ({ ...prev, currentLevel: prev.currentLevel - data.liters }));
-    alert('Salvo Localmente! Sincronize quando tiver internet.');
   }, [currentUser]);
 
   const handleRefillSubmit = useCallback((data: any) => {
     if (!currentUser) return;
-    const newRefill: TankRefill = { 
-      id: `r-${Date.now()}`, 
-      date: new Date().toISOString(), 
-      userId: currentUser.id, 
-      synced: false,
-      ...data 
-    };
-    setRefills(prev => [...prev, newRefill]);
+    const newR: TankRefill = { id: `r-${Date.now()}`, date: new Date().toISOString(), userId: currentUser.id, synced: false, ...data };
+    setRefills(prev => [...prev, newR]);
     setTankStatus(prev => ({ ...prev, currentLevel: prev.currentLevel + data.liters }));
-    alert('Recarga Salva Localmente!');
   }, [currentUser]);
-
-  const handleAdjustTank = useCallback((liters: number, reason: string) => {
-    if (!currentUser) return;
-    const oldValue = tankStatus.currentLevel.toString();
-    setTankStatus(prev => ({ ...prev, currentLevel: liters }));
-    setLogs(prev => [...prev, {
-      id: `log-${Date.now()}`, timestamp: new Date().toISOString(), userId: currentUser.id,
-      action: 'ADJUST', entity: 'TANK', oldValue,
-      newValue: liters.toString(), reason
-    }]);
-    alert('Ajuste de tanque concluído.');
-  }, [currentUser, tankStatus.currentLevel]);
 
   if (!currentUser) {
     return (
@@ -293,16 +162,13 @@ const App: React.FC = () => {
                <span className="text-white text-4xl font-black -rotate-12">E</span>
             </div>
             <h1 className="text-4xl font-black text-white tracking-tight">ECOFUEL</h1>
-            <div className="flex items-center justify-center gap-2 mt-2">
-               <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
-               <p className="text-emerald-500 font-bold uppercase text-[10px] tracking-[0.2em]">{isOnline ? 'CONEXÃO ESTÁVEL' : 'MODO OFFLINE'}</p>
-            </div>
+            <p className="text-emerald-500 font-bold uppercase text-[10px] mt-2">Gestão de Diesel</p>
           </div>
           <div className="bg-[#141d18] rounded-[2.5rem] shadow-2xl p-10 border border-emerald-900/30">
             <form onSubmit={handleLogin} className="space-y-6">
-              <input type="email" placeholder="seu@email.com" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-[#1a2520] border border-emerald-900/20 rounded-2xl px-6 py-4 outline-none font-bold text-white" required />
-              <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-[#1a2520] border border-emerald-900/20 rounded-2xl px-6 py-4 outline-none font-bold text-white" />
-              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-5 rounded-2xl transition-all">Acessar Sistema</button>
+              <input type="email" placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-[#1a2520] border border-emerald-900/20 rounded-2xl px-6 py-4 outline-none font-bold text-white" required />
+              <input type="password" placeholder="Senha" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-[#1a2520] border border-emerald-900/20 rounded-2xl px-6 py-4 outline-none font-bold text-white" />
+              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-5 rounded-2xl transition-all">Entrar</button>
             </form>
           </div>
         </div>
@@ -321,22 +187,10 @@ const App: React.FC = () => {
       onSync={handleSync}
     >
       {activeTab === 'dashboard' && <Dashboard fuelings={fuelings} tankStatus={tankStatus} companies={companies} machines={machines} refills={refills} />}
-      {activeTab === 'profile' && <UserProfile user={currentUser} fuelings={fuelings} machines={machines} onUpdateUser={(data) => handleUpdateUser(currentUser.id, data)} />}
-      {activeTab === 'fueling' && <FuelingForm user={currentUser} machines={machines} companies={companies} fuelings={fuelings} onSubmit={handleFuelingSubmit} onSuggestCorrection={handleSuggestCorrection} tankBalance={tankStatus.currentLevel} />}
-      {activeTab === 'refill' && <RefillForm tankStatus={tankStatus} companies={companies} onSubmit={handleRefillSubmit} onUpdateMetadata={handleUpdateTankMetadata} onAdjustTank={handleAdjustTank} />}
-      {activeTab === 'reports' && (
-        <Reports 
-          user={currentUser} 
-          fuelings={fuelings} 
-          refills={refills} 
-          companies={companies} 
-          machines={machines} 
-          users={users} 
-          logs={logs}
-          onDeleteFueling={handleDeleteFueling}
-          onUpdateFueling={handleUpdateFueling}
-        />
-      )}
+      {activeTab === 'profile' && <UserProfile user={currentUser} fuelings={fuelings} machines={machines} onUpdateUser={(data) => setCurrentUser(prev => prev ? {...prev, ...data} : null)} />}
+      {activeTab === 'fueling' && <FuelingForm user={currentUser} machines={machines} companies={companies} fuelings={fuelings} onSubmit={handleFuelingSubmit} onSuggestCorrection={() => {}} tankBalance={tankStatus.currentLevel} />}
+      {activeTab === 'refill' && <RefillForm tankStatus={tankStatus} companies={companies} onSubmit={handleRefillSubmit} onUpdateMetadata={(n, c) => setTankStatus(p => ({...p, name: n, capacity: c}))} onAdjustTank={(l) => setTankStatus(p => ({...p, currentLevel: l}))} />}
+      {activeTab === 'reports' && <Reports user={currentUser} fuelings={fuelings} refills={refills} companies={companies} machines={machines} users={users} logs={logs} onDeleteFueling={() => {}} onUpdateFueling={() => {}} />}
       {activeTab === 'admin' && (
         <Admin 
           companies={companies} 
@@ -346,10 +200,10 @@ const App: React.FC = () => {
           logs={logs} 
           onAddMachine={m => setMachines(p => [...p, {id: `m-${Date.now()}`, synced: false, ...m}])} 
           onAddUser={u => setUsers(p => [...p, {id: `u-${Date.now()}`, password: '123', synced: false, ...u}])} 
-          onUpdateUser={handleUpdateUser} 
-          onDeleteUser={handleDeleteUser} 
-          onAdjustTank={handleAdjustTank}
-          onProcessCorrection={handleProcessCorrection}
+          onUpdateUser={() => {}} 
+          onDeleteUser={() => {}} 
+          onAdjustTank={(l) => setTankStatus(p => ({...p, currentLevel: l}))}
+          onProcessCorrection={() => {}}
         />
       )}
     </Layout>

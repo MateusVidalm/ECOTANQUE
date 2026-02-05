@@ -1,5 +1,11 @@
+
 {
   "name": "EcoFuel Diesel Control",
-  "description": "A comprehensive responsive system for managing diesel consumption across multiple companies, featuring tank monitoring, fueling logs, and tiered user permissions.",
-  "requestFramePermissions": []
+  "description": "Sistema offline-first para controle de consumo de diesel com sincronização em nuvem.",
+  "requestFramePermissions": ["camera"],
+  "short_name": "EcoFuel",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c1410",
+  "theme_color": "#059669"
 }
