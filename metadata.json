@@ -1,7 +1,5 @@
 {
   "name": "EcoFuel Diesel Control",
-  "description": "Sistema PWA para controle de consumo de diesel industrial.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "description": "A comprehensive responsive system for managing diesel consumption across multiple companies, featuring tank monitoring, fueling logs, and tiered user permissions.",
+  "requestFramePermissions": []
 }
